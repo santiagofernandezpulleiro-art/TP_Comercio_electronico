@@ -4,16 +4,13 @@ import { ArrowUpRight, Leaf, X } from "lucide-react";
 export function Brand({ light = false }: { light?: boolean }) {
   return (
     <a
-      className={`brand ${light ? "brand-light" : ""}`}
+      className={`brand solidarity-brand ${light ? "brand-light" : ""}`}
       href="#/"
-      aria-label="Silva, inicio"
+      aria-label="Solidaridad LATAM, inicio"
     >
-      <span className="brand-icon">
-        <Leaf size={23} strokeWidth={1.7} />
-      </span>
-      <span>
-        silva<span className="brand-dot">.</span>
-        <small>EUDR INTELLIGENCE</small>
+      <span className="solidarity-wordmark">
+        solidaridad<span>.</span>
+        <small>LATINOAMÉRICA</small>
       </span>
     </a>
   );
@@ -83,17 +80,17 @@ export function ReportCover({ compact = false }: { compact?: boolean }) {
     >
       <div className="cover-top">
         <Leaf size={23} />
-        <span>SILVA / RESEARCH</span>
+        <span>SOLIDARIDAD LATAM</span>
         <ArrowUpRight size={20} />
       </div>
       <div className="cover-title">
-        <span>UNA NUEVA MIRADA</span>
+        <span>RECURSO PILOTO · EUDR</span>
         <h2>
-          El futuro
+          Preparar
           <br />
-          crece desde
+          el futuro,
           <br />
-          <em>el origen.</em>
+          <em>desde el origen.</em>
         </h2>
         <p>
           EUDR · Trazabilidad y cadenas
@@ -108,8 +105,8 @@ export function ReportCover({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
       <div className="cover-bottom">
-        <span>REPORTE EUDR</span>
-        <span>EDICIÓN DEMOSTRATIVA</span>
+        <span>MUESTRA ACADÉMICA</span>
+        <span>NO ES UN INFORME OFICIAL</span>
       </div>
     </div>
   );
@@ -126,25 +123,28 @@ export function PrivacyText() {
       <h3>Finalidad y consentimiento</h3>
       <p>
         Los datos permiten simular el acceso al reporte, registrar un contacto y
-        mostrar su gestión comercial. La casilla de comunicaciones es opcional,
-        empieza desmarcada y no condiciona la descarga. No se envían correos ni
-        comunicaciones reales.
+        mostrar su seguimiento institucional. Se solicita consentimiento
+        obligatorio para este tratamiento local. La casilla independiente de
+        comunicaciones es opcional, empieza desmarcada y no condiciona la
+        descarga. No se envían correos ni comunicaciones reales.
       </p>
       <h3>Acceso, rectificación y supresión</h3>
       <p>
         Como referencia a los derechos previstos por la Ley argentina 25.326,
-        podés consultar tus datos en la ficha del CRM, corregirlos allí o
-        eliminarlos. “Reiniciar demo” borra todos los contactos ingresados y
+        podés consultar tus datos en la ficha del CRM o eliminarlos junto con su
+        actividad. Para rectificarlos, eliminá el contacto y volvé a
+        registrarlo. “Reiniciar demo” borra todos los contactos ingresados y
         restaura los ejemplos. El almacenamiento persiste hasta su eliminación o
         la limpieza del navegador.
       </p>
       <h3>Antes de un uso real</h3>
       <p>
-        Silva es una identidad ficticia. Este prototipo no recolecta datos para
-        una organización real. Un despliegue productivo requiere identificar al
-        responsable del tratamiento y sus canales de contacto, informar
-        destinatarios y plazos de conservación, e implementar seguridad y
-        atención de derechos. Este aviso no certifica cumplimiento legal.
+        Este prototipo académico toma como referencia a Solidaridad LATAM y no
+        es una herramienta oficial ni está conectado con la organización. Un
+        despliegue productivo requiere identificar al responsable del
+        tratamiento y sus canales de contacto, informar destinatarios y plazos
+        de conservación, e implementar seguridad y atención de derechos. Este
+        aviso no certifica cumplimiento legal.
       </p>
     </div>
   );

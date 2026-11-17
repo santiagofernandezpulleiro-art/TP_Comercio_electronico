@@ -1,93 +1,130 @@
-# Silva · EUDR Intelligence
+# Hub de Aliados Estratégicos · Solidaridad LATAM
 
-Prototipo académico interactivo para demostrar una estrategia de captación, conversión y gestión de leads. **Silva es una marca ficticia**. La aplicación tiene exactamente cuatro pantallas principales y no utiliza backend, APIs, fuentes ni imágenes externas.
+Prototipo académico B2B de Comercio Electrónico del ITBA. Implementa el circuito **landing → formulario → recurso técnico → CRM → calificación → seguimiento institucional** del informe adjunto “TP Comercio Electrónico (1).pdf”. No es una herramienta oficial ni está conectado a Solidaridad.
 
-## Ejecutar localmente
+## Ejecutar
 
-Requisitos: Node.js 22 o 24 y npm. Validado con Node.js 24.22.1 y npm 11.9.0.
+Requisitos: Node.js 22 o 24 y npm. Validado con Node.js 24.22.1. No requiere base de datos, backend, cuentas ni credenciales.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Vite informa la dirección del servidor (puerto predeterminado 5173). Mantené la terminal abierta durante la demostración. Después de instalar las dependencias no se necesita conexión a internet: todos los recursos, incluidos iconos y PDF, son locales. El servidor local debe seguir encendido.
+El servidor Vite indica su dirección y usa el puerto 5173 por defecto. Después de instalar las dependencias, todo el flujo funciona sin internet **mientras el servidor local permanezca ejecutándose**. La imagen, los iconos y el PDF son locales; no se utilizan fuentes, imágenes remotas ni APIs en tiempo de ejecución.
 
 ```bash
 npm run build     # TypeScript + compilación de producción
 npm run preview   # Servir la compilación generada
-npm test          # Pruebas funcionales en Chromium: desktop y móvil
+npm test          # Pruebas funcionales en Chromium, escritorio y móvil
 ```
 
-Las pruebas usan `/usr/bin/chromium` si existe. En otros equipos, instalá el navegador una vez con `npx playwright install chromium`, o indicá su ruta con `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. La configuración inicia automáticamente Vite en el puerto 5173. Los resultados y trazas de fallos son locales y están excluidos de Git.
+En la nube, si la caché habitual no es escribible, usar `npm ci --cache /tmp/silva-npm-cache`. Esa ruta se conserva por compatibilidad con el entorno existente; no afecta la identidad del producto. Después de reinstalar `node_modules`, reiniciar el servidor Vite propio para evitar módulos obsoletos en memoria.
 
-En entornos donde la caché habitual de npm no sea escribible:
+Las pruebas usan `/usr/bin/chromium` cuando está disponible. En otros equipos, ejecutar una vez `npx playwright install chromium`, o indicar la ruta de un navegador instalado en `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Playwright inicia el servidor de pruebas automáticamente. Los resultados y las trazas están excluidos de Git.
 
-```bash
-npm ci --cache /tmp/silva-npm-cache
+## Cuatro pantallas
+
+| Ruta          | Función                                                                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/#/`         | Landing institucional, patrón en Z, CTA al informe y contacto con el equipo.                                                                     |
+| `/#/registro` | Nombre, apellido, correo corporativo, organización y sector; consentimiento obligatorio y comunicaciones opcionales independientes.              |
+| `/#/gracias`  | Confirmación personalizada, descarga real de PDF y solicitud de reunión técnica mediante modal.                                                  |
+| `/#/crm`      | Consola de Comunicación y Programas: indicadores, gráficos, búsqueda, filtros, ordenamiento, ficha, historial, notas, calificación y derivación. |
+
+La barra inferior permite recorrerlas y restaurar los datos de ejemplo. Los modales no agregan pantallas. “Contactar al equipo” registra una solicitud si existe un contacto activo; si no, indica cómo registrarlo. No solicita horarios ni crea invitaciones.
+
+## Demostración en 8 minutos
+
+| Tiempo    | Recorrido                                                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0:00–1:00 | Mostrar la landing: propuesta de valor, cadena agroindustrial y CTA. Aclarar que se trata de un prototipo académico, no de una plataforma oficial.                                            |
+| 1:00–2:15 | Abrir el formulario, mostrar validaciones y registrar `Alex`, `Pérez`, `alex@origen.test`, `Cooperativa Origen Demo`, `Café y cacao`. Aceptar tratamiento y dejar comunicaciones desmarcadas. |
+| 2:15–3:00 | Acceder al material y descargar el PDF. La descarga añade 20 puntos y habilita MQL con los criterios iniciales.                                                                               |
+| 3:00–3:45 | Solicitar una reunión técnica y agregar contexto. Mostrar la confirmación: no es una reserva de calendario ni envía notificaciones.                                                           |
+| 3:45–4:45 | Entrar al CRM. Encontrar el último contacto resaltado, ver sector, descarga, estado y calificación MQL. Los indicadores reflejan los eventos del recorrido.                                   |
+| 4:45–6:00 | Abrir la ficha. Consultar la puntuación y el historial. Marcar aceptación simulada por Programas: pasa a SQL. Agregar una nota y derivar a Programas.                                         |
+| 6:00–7:00 | Mostrar filtros, búsqueda y orden por fecha. Recargar para comprobar persistencia. Explicar diferencia entre estado operativo y calificación.                                                 |
+| 7:00–8:00 | Mostrar atribución UTM y criterios configurables. Explicar que no hay objetivos cuantitativos institucionales validados. Exportar o restaurar datos.                                          |
+
+Para demostrar atribución desde el inicio, abrir la aplicación con parámetros **antes del fragmento de ruta**:
+
+```text
+/?utm_source=linkedin&utm_medium=social&utm_campaign=piloto-eudr#/
 ```
 
-## Las cuatro pantallas
+También se puede generar un enlace desde **Simular campaña** en el CRM. Esto solo recarga la aplicación local con UTM: no publica campañas ni crea conexiones externas.
 
-1. `/#/`: landing del reporte, beneficios, portada creada con CSS y CTA de descarga.
-2. `/#/registro`: formulario con validación, aviso de privacidad y consentimiento comercial opcional desmarcado. Crea un contacto con estado **Nuevo** y clasificación **Lead**.
-3. `/#/gracias`: confirmación, descarga del PDF de muestra y modal de reserva simulada. La reserva actualiza el estado del contacto a **Reunión agendada**, sin modificar su clasificación.
-4. `/#/crm`: espacio comercial interno con indicadores derivados, visualización de etapas, tabla, búsqueda por nombre o empresa, filtros de estado y clasificación, edición, supresión y exportación CSV de los resultados visibles.
+## Puntuación transparente
 
-La barra inferior permite recorrer las cuatro pantallas y reiniciar la demostración, con confirmación. Las reservas, la ficha de contacto, la ayuda y el aviso de privacidad son modales, no pantallas adicionales. Al abrir directamente la confirmación sin registrarse se puede descargar la muestra; para vincular una reserva se solicita primero un contacto.
+Los criterios siguientes son hipótesis de demostración, **sujetos a validación por Solidaridad**. No provienen de umbrales cuantitativos del informe.
 
-## Recorrido sugerido · 8 minutos
+| Señal                                    | Puntos máximos |
+| ---------------------------------------- | -------------: |
+| Organización declarada, sin verificación |             10 |
+| Sector prioritario de la demostración    |             25 |
+| Formulario enviado                       |              5 |
+| Solicitud de descarga del recurso        |             20 |
+| Solicitud de reunión técnica             |             30 |
+| Aceptación manual simulada por Programas |             10 |
 
-| Tiempo    | Acción y explicación                                                                                                                                                                                                      |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00–1:15 | Mostrar la landing: propuesta de valor, patrón de lectura en Z y beneficios del contenido. Explicar que el documento y la marca son de demostración.                                                                      |
-| 1:15–2:30 | Pulsar **Descargar reporte gratuito**. Mostrar validaciones con un envío vacío. Ingresar `Alex Pérez`, `alex@origen.test`, `Origen Demo`, `Responsable de sostenibilidad`. Mostrar que las comunicaciones son opcionales. |
-| 2:30–3:30 | Enviar. Mostrar confirmación y descargar el PDF. Aclarar que no es el informe original ni asesoramiento normativo.                                                                                                        |
-| 3:30–4:15 | Abrir la reserva, elegir día y horario y confirmar. Mostrar el aviso de reserva simulada, sin reunión real.                                                                                                               |
-| 4:15–5:00 | Abrir el CRM. Distinguir el espacio comercial de la experiencia del visitante. Identificar el contacto destacado como **Desde formulario**.                                                                               |
-| 5:00–6:15 | Cambiar su clasificación **Lead → MQL → SQL** desde la tabla; observar indicadores y distribución. Explicar que el estado de seguimiento es independiente de la clasificación.                                            |
-| 6:15–7:15 | Buscar por empresa, filtrar por estado, abrir la ficha y mostrar la reserva. Recargar para demostrar persistencia.                                                                                                        |
-| 7:15–8:00 | Exportar CSV, explicar privacidad y limitaciones. Reiniciar la demo para volver al estado inicial.                                                                                                                        |
+- Total máximo: 100. Repetir descargas o interacciones no acumula puntuación adicional.
+- Sectores prioritarios de ejemplo: todos los disponibles salvo **Otro**. No se afirma que esta selección represente las prioridades reales de Solidaridad.
+- **MQL:** al menos 60 puntos, sector prioritario y descarga solicitada.
+- **SQL:** al menos 90 puntos, condiciones MQL, solicitud de reunión y aceptación manual de Programas. Una solicitud por sí sola no convierte al contacto en SQL.
+- Los umbrales son editables desde **Criterios de calificación**. Se valida `1 ≤ MQL < SQL ≤ 100`; cambiar los valores recalcula indicadores y fichas y persiste al recargar.
+- El formulario no recoge cargo, tamaño de empresa ni poder de decisión: esos atributos no se dan por verificados.
+- El estado operativo es independiente. Se incluyen los estados pedidos, incluidos los hitos “MQL” y “SQL”; elegirlos no fuerza la calificación calculada. La interfaz explica esa diferencia.
 
-## Datos, métricas y privacidad
+## Eventos, métricas y atribución
 
-- Seis contactos iniciales son ficticios, con direcciones en el dominio reservado `.test`. Las fechas de esos ejemplos se generan relativas al comienzo o reinicio de la demostración y no son actividad histórica real.
-- Los datos se guardan en LocalStorage bajo `silva-eudr-demo-v1`. No hay envío de datos, correos, calendarios ni videollamadas reales. No se usan cookies ni analítica.
-- **Usar exclusivamente datos ficticios**. El CRM no tiene autenticación y no está preparado para producción.
-- Los indicadores cuentan los contactos actuales. **Leads nuevos** cuenta el estado Nuevo; **MQL** y **SQL** cuentan las clasificaciones actuales. Las proporciones del embudo son `(MQL + SQL) / total` y `SQL / total`. No se afirma medir conversiones históricas: no hay historial de eventos ni tasas de campañas inventadas.
-- La ficha permite corregir datos y consentimiento o eliminar un contacto. Reiniciar borra los contactos ingresados y sus reservas y restaura los seis ejemplos, sin tocar otras claves del navegador.
-- Si LocalStorage está bloqueado se muestra un aviso de que los cambios solo duran en memoria. Si sus datos están dañados, se restaura la muestra con un aviso.
-- El aviso de privacidad toma como referencia la Ley argentina 25.326, explica finalidad, almacenamiento y derechos. **No certifica cumplimiento legal**. Un uso real requiere responsable identificable, canales de atención, seguridad, conservación y las demás medidas pertinentes.
-- No se adjuntó el informe original ni su Sección 8. No se inventaron resultados, estadísticas, avales empresariales ni requisitos normativos. El contenido comercial es ilustrativo.
+El almacenamiento inicial contiene 18 contactos ficticios de diferentes sectores, direcciones `.test` y eventos sintéticos. No representan personas, alianzas o actividad real de Solidaridad.
 
-## Documento de muestra
+- Eventos: visita a landing, inicio de formulario, formulario enviado, solicitud de descarga, solicitud de reunión, actualización de estado, revisión técnica, nota, derivación y cambio de umbrales.
+- Visita e inicio se registran una vez por sesión local, sin duplicarse al navegar o recargar. La sesión se conserva en SessionStorage. Un enlace con UTM diferente inicia una nueva sesión de atribución.
+- La atribución es de **primer contacto por sesión**, no algorítmica ni multicanal. Se conservan `utm_source`, `utm_medium`, `utm_campaign`; los faltantes se rotulan como no informados. No se deducen fuentes verificadas a partir de su ausencia.
+- La conversión de landing cuenta **sesiones con visita y formulario / sesiones con visita**, por lo que varios envíos de la misma sesión no inflan la tasa y una entrada directa al formulario no se inventa como visita. Es una interpretación por sesión de la fórmula formularios/visitas del TP.
+- Formularios y solicitudes de descarga muestran eventos registrados. La descarga significa un clic que solicita el PDF, no prueba que se guardó o leyó. La reunión significa interés, no una reunión realizada.
+- MQL y SQL cuentan calificaciones actuales; no se presentan como tasas de transición históricas.
+- Los gráficos muestran altas en 14 días, embudo de eventos, distribución por sector y estado, y tráfico/conversiones por fuente cuando existen visitas.
+- El CSV exporta los contactos que coinciden con los filtros y contiene estado, puntuación y UTM.
+- No se simulan impresiones, rebote, fondos movilizados, convenios firmados ni impacto económico sin evidencia. No se fijan metas institucionales inventadas.
 
-`public/reporte-eudr-demostracion.pdf` es un PDF real y local, rotulado como demostración. Su fuente está en `scripts/generate-sample-report.py`; puede regenerarse con Python 3 sin dependencias:
+## Datos personales y límites de producción
 
-```bash
-python3 scripts/generate-sample-report.py
-```
+Usar exclusivamente datos ficticios. La clave LocalStorage es `solidaridad-hub-v1`; guarda contactos, consentimiento y fecha, eventos, notas, umbrales y último contacto. Si el almacenamiento falla, se informa que el estado solo durará en memoria. Los datos dañados se recuperan con un aviso.
 
-Cuando esté disponible el informe autorizado, incorporar el PDF y adaptar los textos y su identificación para que dejen de presentarlo como muestra. Revisar especialmente la Sección 8, páginas 9 y 10, antes de afirmar que este prototipo implementa sus requisitos.
+El consentimiento para el tratamiento es obligatorio. La casilla de comunicaciones institucionales empieza desmarcada y es independiente. El aviso se refiere a la Ley argentina 25.326 y explica finalidad, almacenamiento local y supresión. La ficha permite eliminar un contacto y sus actividades; para rectificar los datos de identidad, se elimina y vuelve a registrar. Restaurar borra solo la demostración actual y carga de nuevo sus ejemplos y criterios.
+
+La versión anterior de Silva, si existiera en el mismo navegador, conserva su clave separada y no se importa: no sería válido inventarle sectores ni consentimientos obligatorios. Esta actualización no borra esos datos anteriores ni otras aplicaciones.
+
+No hay autenticación, backend, cifrado de base de datos, comunicaciones, CRM externo, GA4, GTM ni Looker Studio. El aviso no certifica cumplimiento legal. Antes de un uso real se requiere validación jurídica, responsable identificable, canales de derechos, seguridad, conservación, gobernanza de datos y confirmación de criterios por Comunicación y Programas.
+
+## Informe, identidad y recursos
+
+La correspondencia de requisitos y decisiones está documentada en [docs/ALINEACION_INFORME.md](docs/ALINEACION_INFORME.md). Se priorizan las secciones 5, 6, 8, 9 y 10. El modelo futuro de membresías de la sección 7 no se implementa: no hay tienda, carrito, pagos, facturación ni membresías.
+
+- `public/informe-eudr-demostracion.pdf`: PDF local de dos páginas, expresamente académico y no oficial. Contiene preguntas introductorias y alcance, no asesoramiento normativo ni estadísticas atribuidas a la organización. No es una copia del TP ni un supuesto informe oficial de EUDR.
+- `scripts/generate-sample-report.py`: fuente reproducible del PDF. Ejecutar `python3 scripts/generate-sample-report.py`; no necesita dependencias.
+- `public/agricultura-ilustrativa.png`: imagen agrícola generada para este prototipo y rotulada como ilustrativa. No se atribuye a un proyecto, territorio o intervención de Solidaridad.
+- La marca de cabecera es una referencia tipográfica al nombre institucional; no es un archivo del imagotipo oficial. El acceso al sitio institucional y al banco de imágenes respondió 403 en este entorno. No se inventan respaldos, sellos ni logos de aliados. Para difusión institucional debe sustituirse por un recurso oficial autorizado.
+- El PDF académico adjunto se utilizó como fuente de análisis; no se incluye en el sitio ni se publica con los datos personales de su portada.
 
 ## Arquitectura
 
-React + TypeScript, Vite, Tailwind CSS 4 y Lucide React. El CSS incluye componentes reutilizables, puntos de adaptación a móvil, foco visible, enlace de salto, diálogos nativos con cierre por Escape y respeto a movimiento reducido.
+Se conserva React, TypeScript, Vite, Tailwind CSS y Lucide React del proyecto existente. Los gráficos usan SVG y CSS locales, con etiquetas textuales accesibles, sin agregar una dependencia de gráficos innecesaria.
 
 ```text
-src/
-  App.tsx          Navegación, persistencia y estado compartido
-  PublicPages.tsx  Landing, captación, confirmación y reserva
-  Dashboard.tsx    CRM, métricas, filtros, edición y exportación
-  components.tsx   Marca, portada, modal y privacidad
-  data.ts          Tipos, ejemplos y recuperación del almacenamiento
-  styles.css       Sistema visual responsive + Tailwind
-tests/
-  flow.spec.ts     Recorrido completo y controles funcionales
+src/App.tsx            Estado compartido, navegación, sesiones y registro de eventos
+src/PublicPages.tsx    Landing, captación, confirmación y solicitud de reunión
+src/Dashboard.tsx      Tabla, filtros, orden, exportación, criterios y campaña UTM
+src/Analytics.tsx      Indicadores y gráficos derivados
+src/ContactDetail.tsx  Información, puntuación, historial, notas y derivación
+src/data.ts            Tipos, ejemplos, validación y reglas de puntuación
+src/components.tsx     Marca, portada, diálogos y privacidad reutilizables
+src/styles.css         Sistema visual y componentes base existentes
+src/institutional.css  Adaptación institucional y responsive
+tests/flow.spec.ts     Recorrido, consentimiento, duplicados, UTM, reglas y persistencia
 ```
 
-## Publicación en GitHub y entorno de nube
-
-El usuario autorizó que Codex haga commit y push al completar cambios solicitados. Revisar los archivos y las comprobaciones antes de publicar; no incluir datos privados ni usar force push. La rama local de la nube puede llamarse `work`; el destino acordado es `origin/main` mediante `git push origin HEAD:refs/heads/main`. Si el remoto avanzó o impone protección, conservar el trabajo y resolver el bloqueo sin sobrescribirlo. Guardar un archivo no genera por sí solo un envío a GitHub.
-
-Las instrucciones reutilizables de instalación y arranque del entorno se guardan en su configuración. Los procesos de Vite deben iniciarse nuevamente al abrir otra instancia: no sobreviven a un snapshot.
+El entorno conserva el flujo autorizado de commit y push al finalizar tareas solicitadas. La rama local puede llamarse `work`; el destino acordado es `main`. Nunca se usa force push ni se incluyen secretos. La configuración de arranque se guarda en el borrador del entorno; publicarla desde la interfaz activa las instrucciones para futuras instancias.

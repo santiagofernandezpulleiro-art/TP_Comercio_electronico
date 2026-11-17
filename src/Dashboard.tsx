@@ -6,131 +6,165 @@ import {
   ArrowUpRight,
   BarChart3,
   Check,
-  ChevronDown,
   CircleHelp,
   ContactRound,
+  FileText,
   Filter,
+  Globe2,
   LayoutDashboard,
-  Leaf,
-  Mail,
+  Link2,
+  MessageSquare,
   Search,
+  Settings2,
   ShieldCheck,
   SlidersHorizontal,
-  Trash2,
   Users,
   X,
 } from "lucide-react";
 import { Brand, Modal } from "./components";
-import { formatDate, initials, stages, statuses, type Lead } from "./data";
+import {
+  fullName,
+  formatDate,
+  initials,
+  scoreLead,
+  sectors,
+  stages,
+  statuses,
+  type Store,
+  type Thresholds,
+} from "./data";
+import Analytics, { metrics } from "./Analytics";
+import ContactDetail, { type ChangeLead } from "./ContactDetail";
 
-type Props = {
-  leads: Lead[];
-  lastLeadId: string | null;
-  update: (id: string, changes: Partial<Lead>) => void;
-  remove: (id: string) => void;
-};
 const fold = (value: string) =>
   value
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-
-function exportCSV(leads: Lead[]) {
-  const safe = (value: string) =>
+function exportCSV(data: Store, ids: string[]) {
+  const quote = (value: string) =>
     `"${(/^[=+@\-\t\r]/.test(value) ? `'${value}` : value).replaceAll('"', '""')}"`;
   const rows = [
     [
       "Nombre",
-      "Empresa",
-      "Email",
-      "Cargo",
-      "Fecha de registro",
-      "Estado",
-      "Clasificación",
-      "Origen",
-      "Consentimiento comercial",
+      "Apellido",
+      "Organización",
+      "Correo",
+      "Sector",
+      "Registro",
+      "Informe solicitado",
+      "Descarga solicitada",
+      "Estado operativo",
+      "Calificación",
+      "Puntuación",
+      "Fuente UTM",
+      "Medio UTM",
+      "Campaña UTM",
     ],
-    ...leads.map((lead) => [
-      lead.name,
-      lead.company,
-      lead.email,
-      lead.role,
-      lead.createdAt,
-      lead.status,
-      lead.stage,
-      lead.source,
-      lead.marketing ? "Sí (simulado)" : "No",
-    ]),
+    ...data.leads
+      .filter((lead) => ids.includes(lead.id))
+      .map((lead) => {
+        const rating = scoreLead(lead, data.events, data.thresholds);
+        return [
+          lead.name,
+          lead.surname,
+          lead.company,
+          lead.email,
+          lead.sector,
+          lead.createdAt,
+          lead.report,
+          rating.downloaded ? "Sí" : "No",
+          lead.status,
+          rating.stage,
+          String(rating.score),
+          lead.attribution.source,
+          lead.attribution.medium,
+          lead.attribution.campaign,
+        ];
+      }),
   ];
-  const blob = new Blob(
-    ["\uFEFF" + rows.map((row) => row.map(safe).join(",")).join("\r\n")],
-    { type: "text/csv;charset=utf-8;" },
+  const url = URL.createObjectURL(
+    new Blob(
+      ["\uFEFF" + rows.map((row) => row.map(quote).join(",")).join("\r\n")],
+      { type: "text/csv;charset=utf-8;" },
+    ),
   );
-  const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "silva-contactos-demostracion.csv";
+  anchor.download = "hub-aliados-demostracion.csv";
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
 export default function Dashboard({
-  leads,
-  lastLeadId,
+  store,
   update,
+  thresholds,
   remove,
-}: Props) {
+}: {
+  store: Store;
+  update: ChangeLead;
+  thresholds: (value: Thresholds) => void;
+  remove: (id: string) => void;
+}) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Todos");
+  const [sector, setSector] = useState("Todos");
   const [stage, setStage] = useState("Todos");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [help, setHelp] = useState(false);
+  const [sort, setSort] = useState("desc");
   const [tab, setTab] = useState("overview");
-  const [message, setMessage] = useState("");
-  const count = (kind: string) =>
-    leads.filter((lead) => lead.stage === kind).length;
-  const counts = stages.map(count);
-  const percent = (amount: number) =>
-    leads.length ? Math.round((amount / leads.length) * 100) : 0;
-  const mqlPercent = percent(counts[1] + counts[2]);
-  const sqlPercent = percent(counts[2]);
-  const filtered = leads.filter(
-    (lead) =>
-      fold(`${lead.name} ${lead.company}`).includes(fold(search)) &&
-      (status === "Todos" || lead.status === status) &&
-      (stage === "Todos" || lead.stage === stage),
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [modal, setModal] = useState<"help" | "scoring" | "campaign" | null>(
+    null,
   );
-  const selected = leads.find((lead) => lead.id === selectedId);
-  const lastLead = leads.find((lead) => lead.id === lastLeadId);
+  const [message, setMessage] = useState("");
+  const stats = metrics(store);
+  const lastLead = store.leads.find((lead) => lead.id === store.lastLeadId);
+  const selected = store.leads.find((lead) => lead.id === selectedId);
+  const filtered = store.leads
+    .filter(
+      (lead) =>
+        fold(`${fullName(lead)} ${lead.company}`).includes(fold(search)) &&
+        (status === "Todos" || lead.status === status) &&
+        (sector === "Todos" || lead.sector === sector) &&
+        (stage === "Todos" ||
+          scoreLead(lead, store.events, store.thresholds).stage === stage),
+    )
+    .sort((a, b) =>
+      sort === "desc"
+        ? b.createdAt.localeCompare(a.createdAt)
+        : a.createdAt.localeCompare(b.createdAt),
+    );
   const go = (target: string) => {
     setTab(target);
     document
       .getElementById(target)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  const updateStage = (lead: Lead, value: Lead["stage"]) => {
-    update(lead.id, { stage: value });
-    setMessage(`${lead.name}: clasificación actualizada a ${value}.`);
+  const clear = () => {
+    setSearch("");
+    setStatus("Todos");
+    setSector("Todos");
+    setStage("Todos");
   };
   return (
-    <div className="crm-shell">
+    <div className="crm-shell institutional-crm">
       <aside className="crm-sidebar">
         <Brand />
         <div className="workspace-label">
           <span className="workspace-avatar">
-            <Leaf size={18} />
+            <Users size={18} />
           </span>
           <div>
-            Espacio comercial<small>Silva · Demostración</small>
+            Hub de Aliados<small>Comunicación y Programas</small>
           </div>
-          <ChevronDown size={14} />
         </div>
-        <span className="sidebar-label">WORKSPACE</span>
+        <span className="sidebar-label">ESPACIO INSTITUCIONAL</span>
         <nav aria-label="Navegación del CRM">
           {[
             { id: "overview", text: "Vista general", icon: LayoutDashboard },
             { id: "contacts", text: "Contactos", icon: ContactRound },
-            { id: "pipeline", text: "Embudo comercial", icon: BarChart3 },
+            { id: "pipeline", text: "Embudo y evolución", icon: BarChart3 },
+            { id: "attribution", text: "Atribución de tráfico", icon: Globe2 },
           ].map(({ id, text, icon: Icon }) => (
             <button
               key={id}
@@ -139,207 +173,178 @@ export default function Dashboard({
             >
               <Icon size={18} />
               {text}
-              {id === "contacts" && <span>{leads.length}</span>}
+              {id === "contacts" && <span>{store.leads.length}</span>}
             </button>
           ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="demo-sidebar-card">
             <span className="live-dot" />
-            <strong>Tu espacio de prueba</strong>
-            <p>Datos ficticios. Todo se guarda en este navegador.</p>
-            <button onClick={() => setHelp(true)}>
-              Cómo funciona <ArrowUpRight size={14} />
+            <strong>Datos de demostración</strong>
+            <p>Un recorrido local de captación, calificación y seguimiento.</p>
+            <button onClick={() => setModal("help")}>
+              Entender el prototipo <ArrowUpRight size={14} />
             </button>
           </div>
           <a href="#/" className="back-link">
-            <ArrowLeft size={16} /> Volver a la experiencia
+            <ArrowLeft size={16} />
+            Volver a la landing
           </a>
           <div className="user-profile">
-            <span>SC</span>
+            <span>CP</span>
             <div>
-              Equipo comercial<small>Acceso de demostración</small>
+              Comunicación y Programas
+              <small>Sin acceso a sistemas reales</small>
             </div>
-            <ShieldCheck size={16} />
           </div>
         </div>
       </aside>
       <div className="crm-body">
         <header className="crm-topbar">
           <div>
-            <span>Workspace</span>
+            <span>Hub de Aliados</span>
             <span>/</span>
-            <strong>Vista general</strong>
+            <strong>Gestión institucional</strong>
           </div>
-          <button className="data-badge" onClick={() => setHelp(true)}>
-            <span className="live-dot" /> Datos locales <CircleHelp size={14} />
+          <button className="data-badge" onClick={() => setModal("help")}>
+            <span className="live-dot" /> Datos locales <CircleHelp size={15} />
           </button>
         </header>
         <main id="main-content" tabIndex={-1} className="crm-main">
           <section id="overview">
             <div className="crm-page-heading">
               <div>
-                <div className="eyebrow">CADA CONTACTO, UNA OPORTUNIDAD</div>
+                <div className="eyebrow">DEL CONOCIMIENTO A LA VINCULACIÓN</div>
                 <h1 tabIndex={-1}>
-                  Una mirada a tus oportunidades<span>.</span>
+                  Cada conexión, una posibilidad<span>.</span>
                 </h1>
-                <p>Del primer interés a una conversación con propósito.</p>
+                <p>
+                  Una vista compartida para acompañar oportunidades
+                  institucionales.
+                </p>
               </div>
-              <button
-                className="button secondary export-button"
-                onClick={() => {
-                  exportCSV(filtered);
-                  setMessage(
-                    `Exportación solicitada: ${filtered.length} contactos visibles.`,
-                  );
-                }}
-              >
-                <ArrowDownToLine size={16} /> Exportar CSV
-              </button>
+              <div className="crm-heading-actions">
+                <button
+                  className="button secondary"
+                  onClick={() => setModal("campaign")}
+                >
+                  <Link2 size={15} />
+                  Simular campaña
+                </button>
+                <button
+                  className="button secondary export-button"
+                  onClick={() => {
+                    exportCSV(
+                      store,
+                      filtered.map((lead) => lead.id),
+                    );
+                    setMessage(
+                      `Exportación solicitada: ${filtered.length} contactos visibles.`,
+                    );
+                  }}
+                >
+                  <ArrowDownToLine size={16} />
+                  Exportar CSV
+                </button>
+              </div>
             </div>
             <div className="crm-simulation">
-              <ShieldCheck size={15} />
+              <ShieldCheck size={16} />
               <span>
-                CRM interno de demostración · Todos los contactos son ficticios
-                o ingresados para la prueba.
+                Prototipo académico — datos de demostración. No es una
+                herramienta oficial de Solidaridad LATAM.
               </span>
             </div>
-            <div className="stat-grid">
+            <div className="stat-grid institutional-stats">
               {[
                 {
-                  label: "Leads registrados",
-                  value: leads.length,
+                  label: "Visitas a la landing",
+                  value: stats.visits,
+                  note: "Una por sesión local",
+                  icon: Globe2,
+                },
+                {
+                  label: "Formularios completados",
+                  value: stats.forms,
+                  note: "Envíos únicos registrados",
+                  icon: FileText,
+                },
+                {
+                  label: "Solicitudes de descarga",
+                  value: stats.downloads,
+                  note: "Clics en el PDF de muestra",
+                  icon: ArrowDownToLine,
+                },
+                {
+                  label: "Leads captados",
+                  value: stats.leads,
+                  note: "Contactos en el CRM",
                   icon: Users,
-                  note: "Total de contactos en el CRM",
-                  className: "",
                 },
                 {
-                  label: "Leads nuevos",
-                  value: leads.filter((lead) => lead.status === "Nuevo").length,
-                  icon: ContactRound,
-                  note: "Estado: Nuevo",
-                  className: "stat-new",
-                },
-                {
-                  label: "Leads MQL",
-                  value: counts[1],
+                  label: "Contactos MQL",
+                  value: stats.mql,
+                  note: "Calificados por Comunicación",
                   icon: Filter,
-                  note: "Calificados por marketing",
-                  className: "stat-mql",
                 },
                 {
-                  label: "Leads SQL",
-                  value: counts[2],
+                  label: "Contactos SQL",
+                  value: stats.sql,
+                  note: "Aceptados por Programas",
                   icon: Check,
-                  note: "Calificados para ventas",
-                  className: "stat-sql",
                 },
-              ].map(({ label, value, icon: Icon, note, className }) => (
-                <article key={label} className={`stat-card ${className}`}>
+                {
+                  label: "Reuniones solicitadas",
+                  value: stats.meetings,
+                  note: "Solicitudes, no reuniones reales",
+                  icon: MessageSquare,
+                },
+                {
+                  label: "Conversión de landing",
+                  value: `${stats.conversion.toLocaleString("es-AR")}%`,
+                  note: "Sesiones con formulario / landing",
+                  icon: ArrowUpRight,
+                },
+              ].map(({ label, value, note, icon: Icon }, i) => (
+                <article
+                  className={`stat-card stat-${i}`}
+                  key={label}
+                  aria-label={label}
+                >
                   <div>
                     <span>{label}</span>
                     <span className="stat-icon">
                       <Icon size={17} />
                     </span>
                   </div>
-                  <strong>{value}</strong>
+                  <strong data-metric={label}>{value}</strong>
                   <p>{note}</p>
                 </article>
               ))}
             </div>
           </section>
-          <section id="pipeline" className="analytics-grid">
-            <article className="panel funnel-panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>De interés a oportunidad</h2>
-                  <p>Distribución actual por clasificación</p>
-                </div>
-                <span className="pill neutral">EN TIEMPO REAL</span>
-              </div>
-              <div className="funnel-bars">
-                {stages.map((kind, i) => (
-                  <div
-                    className={`funnel-row funnel-${kind.toLowerCase()}`}
-                    key={kind}
-                  >
-                    <div className="funnel-label">
-                      <span className="stage-dot" />
-                      <strong>{kind}</strong>
-                      <span>
-                        {i === 0
-                          ? "Contacto registrado"
-                          : i === 1
-                            ? "Interés calificado"
-                            : "Oportunidad comercial"}
-                      </span>
-                    </div>
-                    <div className="bar-track">
-                      <div style={{ width: `${percent(counts[i])}%` }} />
-                    </div>
-                    <strong>{counts[i]}</strong>
-                    <span>{percent(counts[i])}%</span>
-                  </div>
-                ))}
-              </div>
-              <div className="funnel-foot">
-                <span>
-                  <span className="live-dot" /> Los indicadores se actualizan al
-                  editar contactos
-                </span>
-                <span>{leads.length} contactos</span>
-              </div>
-            </article>
-            <article className="panel conversion-panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Avance del embudo</h2>
-                  <p>Contactos en etapas calificadas</p>
-                </div>
-                <ArrowUpRight size={19} />
-              </div>
-              <div className="conversion-content">
-                <div
-                  className="donut"
-                  role="img"
-                  aria-label={`${mqlPercent}% de contactos en MQL o SQL`}
-                  style={{
-                    background: `conic-gradient(var(--green) 0% ${sqlPercent}%, #9bbb8e ${sqlPercent}% ${mqlPercent}%, #eef1eb ${mqlPercent}% 100%)`,
-                  }}
-                >
-                  <div>
-                    <strong>{mqlPercent}%</strong>
-                    <span>MQL + SQL</span>
-                  </div>
-                </div>
-                <div className="conversion-legend">
-                  <p>
-                    <span className="legend-dot green" /> Lead → MQL o SQL
-                    <strong>{mqlPercent}%</strong>
-                  </p>
-                  <p>
-                    <span className="legend-dot sage" /> Lead → SQL
-                    <strong>{sqlPercent}%</strong>
-                  </p>
-                  <small>
-                    Proporciones sobre el total actual. No representan un
-                    historial de conversiones.
-                  </small>
-                </div>
-              </div>
-            </article>
-          </section>
+          <Analytics data={store} />
           <section id="contacts" className="panel contacts-panel">
             <div className="panel-heading">
               <div>
                 <h2>
-                  Contactos <span className="count-badge">{leads.length}</span>
+                  Red de contactos{" "}
+                  <span className="count-badge">{store.leads.length}</span>
                 </h2>
-                <p>Conocé a las personas detrás de cada oportunidad.</p>
+                <p>Información, contexto y próximos pasos en un solo lugar.</p>
               </div>
-              <a href="#/registro" className="text-link">
-                Nuevo contacto <ArrowRight size={16} />
-              </a>
+              <div className="contact-heading-actions">
+                <button
+                  className="text-link"
+                  onClick={() => setModal("scoring")}
+                >
+                  <Settings2 size={16} />
+                  Criterios de calificación
+                </button>
+                <a href="#/registro" className="text-link">
+                  Nuevo contacto <ArrowRight size={16} />
+                </a>
+              </div>
             </div>
             {lastLead && (
               <div className="new-lead-banner">
@@ -347,14 +352,16 @@ export default function Dashboard({
                   <Check size={18} />
                 </span>
                 <p>
-                  <strong>Tu último contacto: {lastLead.name}</strong>
-                  <span>Ingresó desde el formulario · {lastLead.company}</span>
+                  <strong>Último registro: {fullName(lastLead)}</strong>
+                  <span>
+                    {lastLead.company} · Desde formulario · Listo para el
+                    seguimiento
+                  </span>
                 </p>
                 <button
                   onClick={() => {
-                    setSearch(lastLead.name);
-                    setStatus("Todos");
-                    setStage("Todos");
+                    clear();
+                    setSearch(fullName(lastLead));
                   }}
                 >
                   Encontrar contacto <ArrowRight size={15} />
@@ -365,8 +372,8 @@ export default function Dashboard({
               <div className="search-field">
                 <Search size={17} />
                 <input
-                  aria-label="Buscar leads por nombre o empresa"
-                  placeholder="Buscar por nombre o empresa..."
+                  aria-label="Buscar por nombre o empresa"
+                  placeholder="Buscar por nombre o empresa…"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -380,145 +387,196 @@ export default function Dashboard({
                   </button>
                 )}
               </div>
-              <div className="filter-fields">
-                <label>
-                  <SlidersHorizontal size={15} />
-                  <span className="sr-only">Filtrar por estado</span>
+              <label className="sort-field">
+                <span>Registro</span>
+                <select
+                  value={sort}
+                  aria-label="Ordenar por fecha"
+                  onChange={(event) => setSort(event.target.value)}
+                >
+                  <option value="desc">Más recientes</option>
+                  <option value="asc">Más antiguos</option>
+                </select>
+              </label>
+            </div>
+            <div className="crm-filter-row">
+              <SlidersHorizontal size={16} />
+              {[
+                {
+                  label: "Filtrar por sector",
+                  value: sector,
+                  set: setSector,
+                  values: sectors,
+                  all: "Todos los sectores",
+                },
+                {
+                  label: "Filtrar por estado",
+                  value: status,
+                  set: setStatus,
+                  values: statuses,
+                  all: "Todos los estados",
+                },
+                {
+                  label: "Filtrar por calificación",
+                  value: stage,
+                  set: setStage,
+                  values: stages,
+                  all: "Todas las calificaciones",
+                },
+              ].map((filter) => (
+                <label key={filter.label}>
+                  <span className="sr-only">{filter.label}</span>
                   <select
-                    aria-label="Filtrar por estado"
-                    value={status}
-                    onChange={(event) => setStatus(event.target.value)}
+                    aria-label={filter.label}
+                    value={filter.value}
+                    onChange={(event) => filter.set(event.target.value)}
                   >
-                    <option value="Todos">Todos los estados</option>
-                    {statuses.map((value) => (
+                    <option value="Todos">{filter.all}</option>
+                    {filter.values.map((value) => (
                       <option key={value}>{value}</option>
                     ))}
                   </select>
                 </label>
-                <label>
-                  <span className="sr-only">Filtrar por clasificación</span>
-                  <select
-                    aria-label="Filtrar por clasificación"
-                    value={stage}
-                    onChange={(event) => setStage(event.target.value)}
-                  >
-                    <option value="Todos">Todas las etapas</option>
-                    {stages.map((value) => (
-                      <option key={value}>{value}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              ))}
+              {(search ||
+                status !== "Todos" ||
+                sector !== "Todos" ||
+                stage !== "Todos") && (
+                <button className="text-link" onClick={clear}>
+                  Limpiar filtros <X size={13} />
+                </button>
+              )}
             </div>
             <div
               className="table-scroll"
-              tabIndex={0}
               role="region"
-              aria-label="Tabla de contactos, desplazable horizontalmente"
+              aria-label="Tabla de contactos desplazable"
+              tabIndex={0}
             >
               <table>
                 <thead>
                   <tr>
-                    <th>CONTACTO</th>
-                    <th>EMPRESA / CARGO</th>
-                    <th>EMAIL</th>
+                    <th>NOMBRE Y APELLIDO</th>
+                    <th>ORGANIZACIÓN / CORREO</th>
+                    <th>SECTOR</th>
                     <th>REGISTRO</th>
-                    <th>ESTADO</th>
-                    <th>CLASIFICACIÓN</th>
-                    <th>
-                      <span className="sr-only">Acciones</span>
-                    </th>
+                    <th>INFORME</th>
+                    <th>ESTADO OPERATIVO</th>
+                    <th>CALIFICACIÓN</th>
+                    <th>ACCIONES</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((lead, index) => (
-                    <tr
-                      key={lead.id}
-                      className={lead.id === lastLeadId ? "highlight-row" : ""}
-                    >
-                      <td>
-                        <div className="contact-cell">
-                          <span
-                            className={`contact-avatar avatar-${index % 4}`}
-                          >
-                            {initials(lead.name)}
-                          </span>
-                          <div>
-                            <strong>{lead.name}</strong>
-                            <small>
-                              {lead.source === "Formulario" ? (
-                                <>
-                                  <span className="source-dot" /> Desde
-                                  formulario
-                                </>
-                              ) : (
-                                "Contacto de ejemplo"
-                              )}
-                            </small>
+                  {filtered.map((lead, i) => {
+                    const rating = scoreLead(
+                      lead,
+                      store.events,
+                      store.thresholds,
+                    );
+                    return (
+                      <tr
+                        key={lead.id}
+                        className={
+                          lead.id === store.lastLeadId ? "highlight-row" : ""
+                        }
+                      >
+                        <td>
+                          <div className="contact-cell">
+                            <span className={`contact-avatar avatar-${i % 4}`}>
+                              {initials(fullName(lead))}
+                            </span>
+                            <div>
+                              <button
+                                className="contact-name"
+                                onClick={() => setSelectedId(lead.id)}
+                              >
+                                {fullName(lead)}
+                              </button>
+                              <small>
+                                {lead.source === "Formulario" ? (
+                                  <>
+                                    <span className="source-dot" />
+                                    Desde formulario
+                                  </>
+                                ) : (
+                                  "Ejemplo precargado"
+                                )}
+                              </small>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="company-cell">
-                          <strong>{lead.company}</strong>
-                          <small title={lead.role}>{lead.role}</small>
-                        </div>
-                      </td>
-                      <td className="email-cell">{lead.email}</td>
-                      <td className="date-cell">
-                        {formatDate(lead.createdAt)}
-                      </td>
-                      <td>
-                        <span
-                          className={`status-pill status-${statuses.indexOf(lead.status)}`}
-                        >
-                          <span />
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td>
-                        <select
-                          className={`stage-select stage-${lead.stage.toLowerCase()}`}
-                          aria-label={`Clasificación de ${lead.name}`}
-                          value={lead.stage}
-                          onChange={(event) =>
-                            updateStage(
-                              lead,
-                              event.target.value as Lead["stage"],
-                            )
-                          }
-                        >
-                          {stages.map((kind) => (
-                            <option key={kind}>{kind}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        <button
-                          className="detail-button"
-                          onClick={() => setSelectedId(lead.id)}
-                          aria-label={`Ver ficha de ${lead.name}`}
-                        >
-                          <ArrowUpRight size={17} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>
+                          <div className="company-cell">
+                            <strong>{lead.company}</strong>
+                            <small>{lead.email}</small>
+                          </div>
+                        </td>
+                        <td className="sector-cell">{lead.sector}</td>
+                        <td className="date-cell">
+                          {formatDate(lead.createdAt)}
+                        </td>
+                        <td className="report-cell">
+                          <span>EUDR · Muestra</span>
+                          <small>
+                            {rating.downloaded
+                              ? "Descarga solicitada"
+                              : "Pendiente de descarga"}
+                          </small>
+                        </td>
+                        <td>
+                          <select
+                            className="status-control"
+                            aria-label={`Estado de ${fullName(lead)}`}
+                            value={lead.status}
+                            onChange={(event) =>
+                              update(
+                                lead.id,
+                                {
+                                  status: event.target
+                                    .value as typeof lead.status,
+                                },
+                                event.target.value === "Derivado a Programas"
+                                  ? "referral"
+                                  : "status",
+                                `Estado: ${lead.status} → ${event.target.value}`,
+                              )
+                            }
+                          >
+                            {statuses.map((value) => (
+                              <option key={value}>{value}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <span
+                            className={`pill stage-${rating.stage.toLowerCase()}`}
+                          >
+                            {rating.stage}
+                          </span>
+                          <small className="table-score">
+                            {rating.score} / 100 puntos
+                          </small>
+                        </td>
+                        <td>
+                          <button
+                            className="detail-button"
+                            aria-label={`Ver ficha de ${fullName(lead)}`}
+                            onClick={() => setSelectedId(lead.id)}
+                          >
+                            <ArrowUpRight size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {!filtered.length && (
                 <div className="empty-state">
-                  <Search size={27} />
+                  <Search size={28} />
                   <h3>No encontramos contactos</h3>
-                  <p>Probá otro nombre o ajustá los filtros.</p>
-                  <button
-                    className="button secondary"
-                    onClick={() => {
-                      setSearch("");
-                      setStatus("Todos");
-                      setStage("Todos");
-                    }}
-                  >
+                  <p>Probá otro nombre, empresa o combinación de filtros.</p>
+                  <button className="button secondary" onClick={clear}>
                     Limpiar filtros
                   </button>
                 </div>
@@ -526,71 +584,85 @@ export default function Dashboard({
             </div>
             <div className="table-footer">
               <span>
-                Mostrando {filtered.length} de {leads.length} contactos
+                Mostrando {filtered.length} de {store.leads.length} contactos
               </span>
               <span>
-                <span className="live-dot" /> Guardado en este navegador
+                <span className="live-dot" />
+                Persistencia local
               </span>
             </div>
+            <p className="table-explainer">
+              Estado operativo y calificación son independientes. Elegir el hito
+              “MQL” o “SQL” no cambia la puntuación: consultá las reglas y la
+              ficha.
+            </p>
           </section>
           <div className="crm-bottom">
-            <span>
-              <Leaf size={14} /> Mejores conversaciones comienzan con mejores
-              conexiones.
-            </span>
-            <span>Silva CRM · Prototipo académico</span>
+            <span>Hub de Aliados Estratégicos · Comunicación y Programas</span>
+            <span>ITBA · Prototipo académico</span>
           </div>
           <p role="status" className="crm-update-message">
             {message ||
-              "Los cambios de clasificación se guardan automáticamente."}
+              "Las acciones se guardan de inmediato en este navegador."}
           </p>
         </main>
       </div>
       {selected && (
-        <ContactModal
-          key={selected.id}
+        <ContactDetail
           lead={selected}
+          data={store}
           close={() => setSelectedId(null)}
-          save={(changes) => {
-            update(selected.id, changes);
-            setMessage(
-              `Ficha de ${changes.name || selected.name} actualizada.`,
-            );
-            setSelectedId(null);
-          }}
+          update={update}
           remove={() => {
             remove(selected.id);
             setSelectedId(null);
           }}
         />
       )}
-      {help && (
-        <Modal title="Un CRM para explorar" close={() => setHelp(false)}>
+      {modal === "scoring" && (
+        <ScoringSettings
+          value={store.thresholds}
+          close={() => setModal(null)}
+          save={(value) => {
+            thresholds(value);
+            setModal(null);
+          }}
+        />
+      )}
+      {modal === "campaign" && <CampaignModal close={() => setModal(null)} />}
+      {modal === "help" && (
+        <Modal
+          title="Un circuito institucional, de principio a fin"
+          close={() => setModal(null)}
+        >
           <div className="prose">
             <p>
-              Esta interfaz representa el espacio interno del equipo comercial.
-              No tiene autenticación y no debe usarse con información real.
+              Este es el espacio interno simulado de Comunicación y Programas.
+              El formulario crea el contacto; las descargas, solicitudes de
+              reunión, notas y cambios de estado generan actividad trazable.
             </p>
             <p>
-              <strong>Lead:</strong> contacto registrado. <strong>MQL:</strong>{" "}
-              contacto calificado por marketing. <strong>SQL:</strong> contacto
-              calificado para ventas. La clasificación se cambia manualmente; no
-              implica una evaluación automática.
+              Los 18 contactos precargados y sus eventos son ficticios. Los
+              registros del formulario se distinguen como “Desde formulario”.
+              Los indicadores se calculan con esta información local, sin
+              estadísticas atribuidas a Solidaridad.
             </p>
             <p>
-              “Nuevo” es un estado de seguimiento independiente de la
-              clasificación. Los porcentajes se calculan a partir de las etapas
-              actuales, sin inventar conversiones históricas.
+              MQL representa un contacto calificado para seguimiento por
+              Comunicación. SQL representa una oportunidad calificada para
+              Programas: exige aceptación técnica manual simulada. Ningún cargo
+              ni poder de decisión se presume verificado.
             </p>
             <p>
-              Los contactos de ejemplo y los ingresados desde el formulario se
-              distinguen en la tabla. Todos los cambios y reservas permanecen en
-              este navegador. Podés borrar un contacto desde su ficha o
-              restaurar los ejemplos con “Reiniciar demo”.
+              La conversión usa sesiones con visita a landing y formulario sobre
+              sesiones con visita. La atribución conserva el primer conjunto UTM
+              de cada sesión local; no es un modelo algorítmico ni una
+              integración con GA4, GTM o Looker Studio.
             </p>
             <p>
-              Exportar CSV descarga únicamente los contactos que coinciden con
-              la búsqueda y los filtros actuales.
+              No hay login, backend, cifrado de base de datos ni notificaciones.
+              Usá datos ficticios. Reiniciar restaura los ejemplos. Exportar
+              descarga los contactos visibles en CSV.
             </p>
           </div>
         </Modal>
@@ -599,171 +671,172 @@ export default function Dashboard({
   );
 }
 
-function ContactModal({
-  lead,
+function ScoringSettings({
+  value,
   close,
   save,
-  remove,
 }: {
-  lead: Lead;
+  value: Thresholds;
   close: () => void;
-  save: (changes: Partial<Lead>) => void;
-  remove: () => void;
+  save: (value: Thresholds) => void;
 }) {
-  const [draft, setDraft] = useState(lead);
-  const [deleting, setDeleting] = useState(false);
+  const [mql, setMql] = useState(String(value.mql));
+  const [sql, setSql] = useState(String(value.sql));
+  const [error, setError] = useState("");
   return (
-    <Modal title="Ficha del contacto" close={close}>
-      <div className="contact-detail-heading">
-        <span className="contact-avatar">{initials(lead.name)}</span>
-        <div>
-          <h3>{lead.name}</h3>
-          <p>
-            {lead.company} ·{" "}
-            {lead.source === "Formulario"
-              ? "Desde formulario"
-              : "Ejemplo ficticio"}
-          </p>
-        </div>
-        <span className={`pill stage-${lead.stage.toLowerCase()}`}>
-          {lead.stage}
-        </span>
+    <Modal title="Criterios transparentes, ajustables" close={close}>
+      <div className="prose">
+        <p>
+          Reglas exclusivamente demostrativas, sujetas a validación por
+          Solidaridad. No hay evidencia en el informe para fijar umbrales
+          institucionales reales.
+        </p>
+        <p>
+          Organización declarada: 10 puntos. Sector prioritario: 25. Formulario:
+          5. Descarga: 20. Solicitud de reunión: 30. Aceptación de Programas:
+          10. Máximo: 100. Las repeticiones no acumulan puntos.
+        </p>
+        <p>
+          En esta muestra se priorizan todos los sectores listados salvo “Otro”.
+          MQL requiere sector prioritario y descarga además del umbral. SQL
+          requiere las condiciones MQL, solicitud de reunión y aceptación manual
+          de Programas.
+        </p>
       </div>
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          save({
-            name: draft.name.trim(),
-            company: draft.company.trim(),
-            email: draft.email.trim(),
-            role: draft.role.trim(),
-            stage: draft.stage,
-            status: draft.status,
-            marketing: draft.marketing,
-          });
+          const next = { mql: Number(mql), sql: Number(sql) };
+          if (
+            !mql ||
+            !sql ||
+            !Number.isInteger(next.mql) ||
+            !Number.isInteger(next.sql) ||
+            next.mql < 1 ||
+            next.sql <= next.mql ||
+            next.sql > 100
+          ) {
+            setError("Usá números enteros: 1 ≤ MQL < SQL ≤ 100.");
+            return;
+          }
+          save(next);
         }}
+        noValidate
       >
         <div className="detail-fields">
-          {(
-            [
-              ["name", "Nombre y apellido"],
-              ["company", "Empresa"],
-              ["email", "Correo electrónico"],
-              ["role", "Cargo"],
-            ] as const
-          ).map(([key, label]) => (
-            <div className="field" key={key}>
-              <label htmlFor={`edit-${key}`}>{label}</label>
-              <input
-                id={`edit-${key}`}
-                value={draft[key]}
-                required
-                pattern={
-                  key === "email" ? "[^\\s@]+@[^\\s@]+\\.[^\\s@]+" : ".*\\S.*"
-                }
-                type={key === "email" ? "email" : "text"}
-                maxLength={key === "email" ? 254 : 120}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    [key]: event.target.value,
-                  }))
-                }
-              />
-            </div>
-          ))}
           <div className="field">
-            <label htmlFor="edit-status">Estado</label>
-            <select
-              id="edit-status"
-              value={draft.status}
-              onChange={(event) =>
-                setDraft((previous) => ({
-                  ...previous,
-                  status: event.target.value as Lead["status"],
-                }))
-              }
-            >
-              {statuses.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
+            <label htmlFor="mql-threshold">Umbral MQL</label>
+            <input
+              id="mql-threshold"
+              type="number"
+              min="1"
+              max="99"
+              step="1"
+              required
+              value={mql}
+              onChange={(event) => setMql(event.target.value)}
+            />
           </div>
           <div className="field">
-            <label htmlFor="edit-stage">Clasificación</label>
-            <select
-              id="edit-stage"
-              value={draft.stage}
-              onChange={(event) =>
-                setDraft((previous) => ({
-                  ...previous,
-                  stage: event.target.value as Lead["stage"],
-                }))
-              }
-            >
-              {stages.map((stage) => (
-                <option key={stage}>{stage}</option>
-              ))}
-            </select>
+            <label htmlFor="sql-threshold">Umbral SQL</label>
+            <input
+              id="sql-threshold"
+              type="number"
+              min="2"
+              max="100"
+              step="1"
+              required
+              value={sql}
+              onChange={(event) => setSql(event.target.value)}
+            />
           </div>
         </div>
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={draft.marketing}
-            onChange={(event) =>
-              setDraft((previous) => ({
-                ...previous,
-                marketing: event.target.checked,
-              }))
-            }
-          />
-          <span>Consentimiento comercial simulado</span>
-        </label>
-        <div className="detail-metadata">
-          <p>
-            <Mail size={15} /> Registro: {formatDate(lead.createdAt)}
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
           </p>
-          {lead.meeting && (
-            <p>
-              <Check size={15} /> Reserva simulada:{" "}
-              {lead.meeting.date.split("-").reverse().join("/")} ·{" "}
-              {lead.meeting.time} (UTC−3)
-            </p>
-          )}
-        </div>
-        {deleting ? (
-          <div className="delete-confirm" role="alert">
-            <p>
-              ¿Eliminar este contacto y su reserva local? Esta acción no se
-              puede deshacer.
-            </p>
-            <button type="button" className="button danger" onClick={remove}>
-              Sí, eliminar
-            </button>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => setDeleting(false)}
-            >
-              Cancelar
-            </button>
-          </div>
-        ) : (
-          <div className="modal-actions split">
-            <button
-              type="button"
-              className="delete-button"
-              onClick={() => setDeleting(true)}
-            >
-              <Trash2 size={15} /> Eliminar
-            </button>
-            <button className="button" type="submit">
-              Guardar cambios <Check size={16} />
-            </button>
-          </div>
         )}
+        <div className="modal-actions">
+          <button className="button secondary" type="button" onClick={close}>
+            Cancelar
+          </button>
+          <button className="button" type="submit">
+            Aplicar criterios <Check size={16} />
+          </button>
+        </div>
       </form>
+    </Modal>
+  );
+}
+function CampaignModal({ close }: { close: () => void }) {
+  const [source, setSource] = useState("linkedin");
+  const [medium, setMedium] = useState("social");
+  const [campaign, setCampaign] = useState("piloto-eudr");
+  const url = new URL("/", location.href);
+  url.search = new URLSearchParams({
+    utm_source: source.trim(),
+    utm_medium: medium.trim(),
+    utm_campaign: campaign.trim(),
+  }).toString();
+  url.hash = "/";
+  return (
+    <Modal title="Simular un enlace de campaña" close={close}>
+      <p className="muted">
+        Abrí la landing con parámetros UTM y completá el recorrido. El contacto
+        conservará este origen y el dashboard reflejará su conversión local.
+      </p>
+      <div className="campaign-fields">
+        {[
+          {
+            id: "source",
+            label: "Fuente · utm_source",
+            value: source,
+            set: setSource,
+          },
+          {
+            id: "medium",
+            label: "Medio · utm_medium",
+            value: medium,
+            set: setMedium,
+          },
+          {
+            id: "campaign",
+            label: "Campaña · utm_campaign",
+            value: campaign,
+            set: setCampaign,
+          },
+        ].map((field) => (
+          <div className="field" key={field.id}>
+            <label htmlFor={`utm-${field.id}`}>{field.label}</label>
+            <input
+              id={`utm-${field.id}`}
+              value={field.value}
+              maxLength={120}
+              onChange={(event) => field.set(event.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="inline-note">
+        <Link2 size={16} />
+        <span>
+          Simulación local. No publica una campaña ni envía datos a plataformas
+          de analítica.
+        </span>
+      </div>
+      <label className="field">
+        <span className="link-label">Enlace de demostración</span>
+        <textarea
+          readOnly
+          rows={3}
+          aria-label="Enlace de campaña"
+          value={url.toString()}
+          onFocus={(event) => event.target.select()}
+        />
+      </label>
+      <a href={url.toString()} className="button full-width campaign-launch">
+        Probar el recorrido con UTM <ArrowRight size={17} />
+      </a>
     </Modal>
   );
 }
